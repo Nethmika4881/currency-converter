@@ -1,58 +1,181 @@
 import { useEffect, useState } from "react";
+import { TrendingUp, ArrowDownUp } from "lucide-react";
 
+const KEY = "ca007700f6389aab72ca16f0";
 export default function App() {
+  const [from, setFrom] = useState("USD");
+  const [to, setTo] = useState("LKR");
+  const [amountFrom, setAmountFrom] = useState("");
+  const [result, setResult] = useState("");
+  function handleFrom(e) {
+    if (e.target.value === to) {
+      alert("Select a different currencies");
+      return;
+    }
+    setFrom(e.target.value);
+  }
+
+  function handleTo(e) {
+    if (e.target.value === from) {
+      alert("Select a different currencies");
+      return;
+    }
+    setTo(e.target.value);
+  }
+
+  function handleSwap() {
+    setFrom(to);
+    setTo(from);
+    setAmountFrom(result);
+    setResult(amountFrom);
+  }
+  useEffect(
+    function () {
+      if (!amountFrom) {
+        setResult("");
+        return;
+      }
+      const controller = new AbortController();
+      const signal = controller.signal;
+      const convert = async function () {
+        try {
+          const res = await fetch(
+            `https://v6.exchangerate-api.com/v6/${KEY}/pair/${from}/${to}/${amountFrom}`,
+            { signal }
+          );
+
+          if (!res.ok) throw new Error("Bad Happened! Try Again");
+
+          const resJson = await res.json();
+          const result = Number(resJson.conversion_result).toFixed(2);
+          // console.log(typeof result); #number
+          setResult(result);
+        } catch (error) {
+          if (error.name !== "AbortError") {
+            console.log(error.message);
+          }
+        }
+      };
+      convert();
+
+      return () => {
+        controller.abort();
+      };
+    },
+    [from, to, amountFrom]
+  );
   return (
     <div className="App">
-      <Topic />
+      <Header />
       <div className="main">
-        <GetInput topic="From" currency="" key="from" />
-        <GetInput topic="To" currency="" key="to" />
+        <GetInput
+          topic="From"
+          onChangeCurreny={handleFrom}
+          currency={from}
+          amount={amountFrom}
+          setAmount={setAmountFrom}
+          isDisabled={false}
+        />
+        <SwapBUtton onSwap={handleSwap} />
+        <GetInput
+          topic="To"
+          onChangeCurreny={handleTo}
+          currency={to}
+          amount={result ? result : ""}
+          isDisabled={true}
+        />
       </div>
     </div>
+  );
+}
+
+function SwapBUtton({ onSwap }) {
+  return (
+    <div className="swap-container">
+      <button onClick={() => onSwap()} className="swap-button">
+        <ArrowDownUp className="swap-icon" />
+      </button>
+    </div>
+  );
+}
+function Header() {
+  return (
+    <>
+      <Logo />
+      <Topic />
+    </>
   );
 }
 
 function Topic() {
   return (
     <div className="topic">
-      <h3>Curreny Converter</h3>
+      <h3>Currency Converter</h3>
       <h5>Convert between world currencies</h5>
     </div>
   );
 }
+function Logo() {
+  return (
+    <div className="logo-container">
+      <div className="logo-circle">
+        <TrendingUp className="logo-icon" />
+      </div>
+    </div>
+  );
+}
 
-function GetInput({ topic }) {
-  const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState("USD");
+function GetInput({
+  topic,
+  onChangeCurreny,
+  currency,
+  amount,
+  isDisabled,
+  setAmount,
+}) {
   const [currenciesList, setCurrenciesList] = useState([]);
   const [currenciesDes, setCurrenciesListDes] = useState([]);
   useEffect(function () {
     const getCurrencies = async function () {
       const res = await fetch(
-        "      https://api.frankfurter.dev/v1/currencies"
+        `https://v6.exchangerate-api.com/v6/${KEY}/codes`
       );
       const resJson = await res.json();
-      const currencies = Object.keys(resJson);
-      const currenciesDes = Object.values(resJson);
 
-      setCurrenciesList(currencies);
+      const currencyCodes = resJson.supported_codes.map((arr) => arr[0]);
+
+      const currenciesDes = resJson.supported_codes.map((arr) => arr[1]);
+
+      setCurrenciesList(currencyCodes);
       setCurrenciesListDes(currenciesDes);
+      // console.log(currenciesDes);
     };
     getCurrencies();
   }, []);
 
+  const handleAmount = function (e) {
+    if (!setAmount) return;
+    if (isNaN(Number(e.target.value))) {
+      alert("Enter Numeric Values");
+      setAmount("");
+      return;
+    }
+
+    setAmount(Number(e.target.value));
+  };
+
   return (
     <div className="getInput">
-      <p>{topic}</p>
+      <p style={{ color: "#343a40", fontWeight: "500" }}>{topic}</p>
       <form className="form">
         <input
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => handleAmount(e)}
+          disabled={isDisabled}
         ></input>
-
         <select
           value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
+          onChange={(e) => onChangeCurreny(e)}
           className="selection"
         >
           {currenciesList.map((curr) => (
@@ -62,7 +185,9 @@ function GetInput({ topic }) {
           ))}
         </select>
       </form>
-      <p>{currenciesDes.at(currenciesList.indexOf(currency))}</p>
+      <p style={{ color: "#868e96" }}>
+        {currenciesDes.at(currenciesList.indexOf(currency))}
+      </p>
     </div>
   );
 }
