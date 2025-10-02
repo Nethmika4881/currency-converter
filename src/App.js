@@ -7,6 +7,9 @@ export default function App() {
   const [to, setTo] = useState("LKR");
   const [amountFrom, setAmountFrom] = useState("");
   const [result, setResult] = useState("");
+  const [currenciesList, setCurrenciesList] = useState([]);
+  const [currenciesDes, setCurrenciesListDes] = useState([]);
+  const [loading, setLoading] = useState(false);
   function handleFrom(e) {
     if (e.target.value === to) {
       alert("Select a different currencies");
@@ -29,6 +32,33 @@ export default function App() {
     setAmountFrom(result);
     setResult(amountFrom);
   }
+
+  useEffect(function () {
+    setLoading(true);
+    const getCurrencies = async function () {
+      try {
+        const res = await fetch(
+          `https://v6.exchangerate-api.com/v6/${KEY}/codes`
+        );
+
+        if (!res.ok) throw new Error("Something bad happened!");
+        const resJson = await res.json();
+
+        const currencyCodes = resJson.supported_codes.map((arr) => arr[0]);
+
+        const currenciesDes = resJson.supported_codes.map((arr) => arr[1]);
+
+        setCurrenciesList(currencyCodes);
+        setCurrenciesListDes(currenciesDes);
+        // console.log(currenciesDes);
+      } catch (error) {
+        console.error(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    getCurrencies();
+  }, []);
   useEffect(
     function () {
       if (!amountFrom) {
@@ -64,6 +94,7 @@ export default function App() {
     },
     [from, to, amountFrom]
   );
+
   return (
     <div className="App">
       <Header />
@@ -74,7 +105,9 @@ export default function App() {
           currency={from}
           amount={amountFrom}
           setAmount={setAmountFrom}
-          isDisabled={false}
+          isDisabled={loading ? true : false}
+          currenciesList={currenciesList}
+          currenciesDes={currenciesDes}
         />
         <SwapBUtton onSwap={handleSwap} />
         <GetInput
@@ -83,6 +116,8 @@ export default function App() {
           currency={to}
           amount={result ? result : ""}
           isDisabled={true}
+          currenciesList={currenciesList}
+          currenciesDes={currenciesDes}
         />
       </div>
     </div>
@@ -132,36 +167,14 @@ function GetInput({
   amount,
   isDisabled,
   setAmount,
+  currenciesList,
+  currenciesDes,
 }) {
-  const [currenciesList, setCurrenciesList] = useState([]);
-  const [currenciesDes, setCurrenciesListDes] = useState([]);
-  useEffect(function () {
-    const getCurrencies = async function () {
-      const res = await fetch(
-        `https://v6.exchangerate-api.com/v6/${KEY}/codes`
-      );
-      const resJson = await res.json();
-
-      const currencyCodes = resJson.supported_codes.map((arr) => arr[0]);
-
-      const currenciesDes = resJson.supported_codes.map((arr) => arr[1]);
-
-      setCurrenciesList(currencyCodes);
-      setCurrenciesListDes(currenciesDes);
-      // console.log(currenciesDes);
-    };
-    getCurrencies();
-  }, []);
-
   const handleAmount = function (e) {
-    if (!setAmount) return;
-    if (isNaN(Number(e.target.value))) {
-      alert("Enter Numeric Values");
-      setAmount("");
-      return;
+    const value = e.target.value;
+    if (value === "" || !isNaN(Number(value))) {
+      setAmount(value);
     }
-
-    setAmount(Number(e.target.value));
   };
 
   return (
